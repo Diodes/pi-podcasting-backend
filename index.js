@@ -1,12 +1,14 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-require('dotenv').config(); // load .env
+const dotenv = require('dotenv');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
+
+dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Grab your Pi API Key from .env
 const PI_API_KEY = process.env.PI_API_KEY;
 if (!PI_API_KEY) {
   console.warn("⚠️ WARNING: PI_API_KEY not set in .env");
@@ -15,12 +17,11 @@ if (!PI_API_KEY) {
 app.use(cors());
 app.use(express.json());
 
-// Basic test route
 app.get('/', (req, res) => {
-  res.send('Pi Podcasting Backend is running 🚀');
+  res.send('🎙️ Vocalcast Backend is running 🚀');
 });
 
-// Pi login verification
+// ✅ Pi login verification
 app.post('/verify-login', async (req, res) => {
   try {
     const { user, jwt, signature } = req.body;
@@ -56,22 +57,85 @@ app.post('/verify-login', async (req, res) => {
   }
 });
 
-// Payment approval
+// ✅ Payment Approval (calls Pi Network)
 app.post('/approve-payment', async (req, res) => {
   const { paymentId } = req.body;
-  console.log(`✅ Received request to approve payment: ${paymentId}`);
-  console.log(`🔐 Using Pi API Key: ${PI_API_KEY ? '[REDACTED]' : 'NOT SET'}`);
-  res.status(200).json({ success: true });
+  console.log("📥 Approve Payment HIT:", paymentId);
+
+  if (!PI_API_KEY) {
+    return res.status(500).json({ success: false, message: "Missing PI_API_KEY" });
+  }
+
+  const headers = {
+    Authorization: `Key ${PI_API_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const fetchPayment = await fetch(`https://api.minepi.com/v2/payments/${paymentId}`, {
+      method: "GET",
+      headers,
+    });
+
+    const payment = await fetchPayment.json();
+
+    if (!payment.status.developer_approved && !payment.status.cancelled) {
+      const approve = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+        method: "POST",
+        headers,
+      });
+
+      if (!approve.ok) {
+        const errText = await approve.text();
+        throw new Error("Pi approval failed: " + errText);
+      }
+
+      console.log("✅ Payment approved on Pi Network");
+      res.json({ success: true });
+    } else {
+      console.log("⚠️ Payment already approved or cancelled");
+      res.json({ success: false, message: "Already approved or cancelled" });
+    }
+  } catch (err) {
+    console.error("❌ Error approving payment:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
-// Payment completion
+// ✅ Payment Completion (marks complete on Pi Network)
 app.post('/complete-payment', async (req, res) => {
   const { paymentId, txid } = req.body;
-  console.log(`✅ Completing payment ${paymentId} with txid: ${txid}`);
-  res.status(200).json({ success: true });
+  console.log("📥 Complete Payment HIT:", paymentId, txid);
+
+  if (!PI_API_KEY) {
+    return res.status(500).json({ success: false, message: "Missing PI_API_KEY" });
+  }
+
+  const headers = {
+    Authorization: `Key ${PI_API_KEY}`,
+    "Content-Type": "application/json",
+  };
+
+  try {
+    const complete = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ txid }),
+    });
+
+    if (!complete.ok) {
+      const errText = await complete.text();
+      throw new Error("Pi completion failed: " + errText);
+    }
+
+    console.log("✅ Payment completed on Pi Network");
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error completing payment:", err);
+    res.status(500).json({ success: false, message: err.message });
+  }
 });
 
 app.listen(PORT, () => {
-  console.log(`Server is listening on port ${PORT}`);
+  console.log(`🌍 Vocalcast server running on port ${PORT}`);
 });
-
