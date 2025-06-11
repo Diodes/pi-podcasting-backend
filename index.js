@@ -1,10 +1,16 @@
 const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
-require('dotenv').config();
+require('dotenv').config(); // load .env
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Grab your Pi API Key from .env
+const PI_API_KEY = process.env.PI_API_KEY;
+if (!PI_API_KEY) {
+  console.warn("⚠️ WARNING: PI_API_KEY not set in .env");
+}
 
 app.use(cors());
 app.use(express.json());
@@ -54,6 +60,7 @@ app.post('/verify-login', async (req, res) => {
 app.post('/approve-payment', async (req, res) => {
   const { paymentId } = req.body;
   console.log(`✅ Received request to approve payment: ${paymentId}`);
+  console.log(`🔐 Using Pi API Key: ${PI_API_KEY ? '[REDACTED]' : 'NOT SET'}`);
   res.status(200).json({ success: true });
 });
 
