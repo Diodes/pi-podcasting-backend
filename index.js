@@ -18,8 +18,14 @@ if (!PI_API_KEY) {
 }
 
 app.use(cors({
-  origin: "*", // or whitelist specific origin(s)
+  origin: [
+  'https://vocal-nasturtium-3ab892.netlify.app',
+  'https://pi://vocalcast',
+  'https://vocalcast.minepi.com' // optional if you publish to Pi Browser mainnet
+],
+
 }));
+
 
 
 app.use(express.json());
@@ -38,10 +44,13 @@ const upload = multer({
     acl: 'public-read',
     key: function (req, file, cb) {
       const timestamp = Date.now();
-      const originalName = file.originalname || "upload";
-      const cleanName = originalName.replace(/[^a-z0-9\.\-_]/gi, '_'); // sanitize
+      const cleanName = file.originalname
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove diacritics
+        .replace(/[^a-zA-Z0-9._-]/g, "_");               // replace bad chars
+
       cb(null, `uploads/${timestamp}-${cleanName}`);
     }
+
   })
 });
 
@@ -54,15 +63,23 @@ app.get('/', (req, res) => {
 // ✅ Upload Route
 app.post('/upload', upload.single('file'), (req, res) => {
   if (!req.file) {
-    return res.status(400).json({ error: 'No file uploaded' });
-  }
+  return res.status(400).json({ error: 'No file uploaded' });
+}
 
-  console.log('✅ File uploaded to S3:', req.file.location);
+
+  // ✅ Logging file details for debugging
+  console.log("🔍 Incoming file name:", req.file.originalname);
+  console.log("📦 File type:", req.file.mimetype);
+  console.log("📏 File size:", req.file.size, "bytes");
+  console.log("✅ File uploaded to S3:", req.file.location);
+
   res.status(200).json({
     success: true,
     url: req.file.location
   });
 });
+
+
 
 // ✅ Pi login verification
 app.post('/verify-login', async (req, res) => {
