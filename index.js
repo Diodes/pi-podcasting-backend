@@ -17,7 +17,11 @@ if (!PI_API_KEY) {
   console.warn("⚠️ WARNING: PI_API_KEY not set in .env");
 }
 
-app.use(cors());
+app.use(cors({
+  origin: "*", // or whitelist specific origin(s)
+}));
+
+
 app.use(express.json());
 
 // ✅ AWS S3 setup
