@@ -34,10 +34,13 @@ const upload = multer({
     acl: 'public-read',
     key: function (req, file, cb) {
       const timestamp = Date.now();
-      cb(null, `uploads/${timestamp}-${file.originalname}`);
+      const originalName = file.originalname || "upload";
+      const cleanName = originalName.replace(/[^a-z0-9\.\-_]/gi, '_'); // sanitize
+      cb(null, `uploads/${timestamp}-${cleanName}`);
     }
   })
 });
+
 
 // ✅ Root
 app.get('/', (req, res) => {
