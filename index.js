@@ -3,6 +3,9 @@ const cors = require('cors');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
 const fetch = require('node-fetch');
+const multer = require('multer');
+const AWS = require('aws-sdk');
+const multerS3 = require('multer-s3');
 
 dotenv.config();
 
@@ -17,8 +20,41 @@ if (!PI_API_KEY) {
 app.use(cors());
 app.use(express.json());
 
+// ✅ AWS S3 setup
+const s3 = new AWS.S3({
+  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+  region: process.env.AWS_REGION || 'us-east-2',
+});
+
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: process.env.AWS_BUCKET_NAME,
+    acl: 'public-read',
+    key: function (req, file, cb) {
+      const timestamp = Date.now();
+      cb(null, `uploads/${timestamp}-${file.originalname}`);
+    }
+  })
+});
+
+// ✅ Root
 app.get('/', (req, res) => {
   res.send('🎙️ Vocalcast Backend is running 🚀');
+});
+
+// ✅ Upload Route
+app.post('/upload', upload.single('file'), (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  console.log('✅ File uploaded to S3:', req.file.location);
+  res.status(200).json({
+    success: true,
+    url: req.file.location
+  });
 });
 
 // ✅ Pi login verification
@@ -57,7 +93,7 @@ app.post('/verify-login', async (req, res) => {
   }
 });
 
-// ✅ Payment Approval (calls Pi Network)
+// ✅ Payment Approval
 app.post('/approve-payment', async (req, res) => {
   const { paymentId } = req.body;
   console.log("📥 Approve Payment HIT:", paymentId);
@@ -102,7 +138,7 @@ app.post('/approve-payment', async (req, res) => {
   }
 });
 
-// ✅ Payment Completion (marks complete on Pi Network)
+// ✅ Payment Completion
 app.post('/complete-payment', async (req, res) => {
   const { paymentId, txid } = req.body;
   console.log("📥 Complete Payment HIT:", paymentId, txid);
