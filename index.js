@@ -5,6 +5,16 @@ const dotenv = require('dotenv');
 const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
+const { Pool } = require('pg');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: {
+    rejectUnauthorized: false, // Required for Render-hosted databases
+  },
+});
+
+
 
 dotenv.config();
 
@@ -80,10 +90,43 @@ app.post('/upload', upload.fields([
 
   console.log("🎙️ Podcast uploaded:", metadata);
 
-  // TODO: Persist metadata to DB (future enhancement)
+  // ✅ Save to DB
+  pool.query(
+    `INSERT INTO podcasts (title, description, duration, audio_url, image_url)
+    VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+    [metadata.title, metadata.description, metadata.duration, metadata.audioUrl, metadata.screenshotUrl]
+  ).then(result => {
+    console.log("✅ Podcast saved to DB:", result.rows[0]);
+    res.status(200).json({ success: true, data: result.rows[0] });
+  }).catch(err => {
+    console.error("❌ DB insert error:", err);
+    res.status(500).json({ success: false, error: "Database insert failed" });
+  });
+
 
   res.status(200).json({ success: true, data: metadata });
 });
+
+app.post('/podcasts', async (req, res) => {
+  const { title, description, duration, audio_url, image_url } = req.body;
+
+  if (!title || !audio_url) {
+    return res.status(400).json({ success: false, error: 'Missing required fields' });
+  }
+
+  try {
+    const result = await pool.query(
+      'INSERT INTO podcasts (title, description, duration, audio_url, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [title, description, duration, audio_url, image_url]
+    );
+
+    res.status(201).json({ success: true, podcast: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Error inserting podcast:", err);
+    res.status(500).json({ success: false, error: 'Database error' });
+  }
+});
+
 
 // ✅ Pi login verification
 app.post('/verify-login', async (req, res) => {
