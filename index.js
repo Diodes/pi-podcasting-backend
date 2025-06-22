@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const crypto = require('crypto');
 const dotenv = require('dotenv');
+dotenv.config(); // ✅ load .env FIRST
 const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
@@ -14,9 +15,6 @@ const pool = new Pool({
   },
 });
 
-
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
