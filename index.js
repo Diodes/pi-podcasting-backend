@@ -45,18 +45,17 @@ const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: process.env.S3_BUCKET_NAME,
-    acl: 'public-read',
     key: function (req, file, cb) {
       const timestamp = Date.now();
       const cleanName = file.originalname
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // remove diacritics
-        .replace(/[^a-zA-Z0-9._-]/g, "_");               // replace bad chars
+        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .replace(/[^a-zA-Z0-9._-]/g, "_");
 
       cb(null, `uploads/${timestamp}-${cleanName}`);
     }
-
   })
 });
+
 
 
 // ✅ Root
