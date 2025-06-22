@@ -63,9 +63,16 @@ const upload = multer({
 });
 
 // ✅ Root
-app.get('/', (req, res) => {
-  res.send('🎙️ Vocalcast Backend is running 🚀');
+app.get('/podcasts', async (req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM podcasts ORDER BY uploaded_at DESC');
+    res.json({ success: true, podcasts: result.rows });
+  } catch (err) {
+    console.error("❌ Error fetching podcasts:", err);
+    res.status(500).json({ success: false, error: "Database query failed" });
+  }
 });
+
 
 // ✅ Upload Route (Audio + Screenshot + Metadata)
 app.post('/upload', upload.fields([
