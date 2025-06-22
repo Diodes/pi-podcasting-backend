@@ -4,7 +4,7 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const fetch = require('node-fetch');
 const multer = require('multer');
-const AWS = require('aws-sdk');
+//const AWS = require('aws-sdk');
 const multerS3 = require('multer-s3');
 
 dotenv.config();
@@ -31,11 +31,15 @@ app.use(cors({
 app.use(express.json());
 
 // ✅ AWS S3 setup
-const s3 = new AWS.S3({
-  accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-  secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+const { S3Client } = require('@aws-sdk/client-s3');
+const s3 = new S3Client({
   region: process.env.AWS_REGION || 'us-east-2',
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+  }
 });
+
 
 const upload = multer({
   storage: multerS3({
