@@ -72,11 +72,10 @@ app.get('/podcasts', async (req, res) => {
 });
 
 
-// ✅ Upload Route (Audio + Screenshot + Metadata)
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
   { name: 'screenshot', maxCount: 1 }
-]), (req, res) => {
+]), async (req, res) => {
   if (!req.files || !req.files['file']) {
     return res.status(400).json({ error: 'No audio file uploaded' });
   }
@@ -95,22 +94,28 @@ app.post('/upload', upload.fields([
 
   console.log("🎙️ Podcast uploaded:", metadata);
 
-  // ✅ Save to DB
-  pool.query(
-    `INSERT INTO podcasts (title, description, duration, audio_url, image_url)
-    VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [metadata.title, metadata.description, metadata.duration, metadata.audioUrl, metadata.screenshotUrl]
-  ).then(result => {
+  try {
+    const result = await pool.query(
+      'INSERT INTO podcasts (title, description, duration, audio_url, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [
+        metadata.title,
+        metadata.description,
+        metadata.duration,
+        metadata.audioUrl,
+        metadata.screenshotUrl
+      ]
+    );
+
     console.log("✅ Podcast saved to DB:", result.rows[0]);
-    res.status(200).json({ success: true, data: result.rows[0] });
-  }).catch(err => {
+
+    // ✅ Only one response sent here
+    res.status(201).json({ success: true, podcast: result.rows[0] });
+  } catch (err) {
     console.error("❌ DB insert error:", err);
-    res.status(500).json({ success: false, error: "Database insert failed" });
-  });
-
-
-  res.status(200).json({ success: true, data: metadata });
+    res.status(500).json({ success: false, error: 'Database error' });
+  }
 });
+
 
 app.post('/podcasts', async (req, res) => {
   const { title, description, duration, audio_url, image_url } = req.body;
