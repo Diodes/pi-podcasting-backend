@@ -4,7 +4,6 @@ const crypto = require('crypto');
 const dotenv = require('dotenv');
 const fetch = require('node-fetch');
 const multer = require('multer');
-//const AWS = require('aws-sdk');
 const multerS3 = require('multer-s3');
 
 dotenv.config();
@@ -19,14 +18,11 @@ if (!PI_API_KEY) {
 
 app.use(cors({
   origin: [
-  'https://vocal-nasturtium-3ab892.netlify.app',
-  'https://pi://vocalcast',
-  'https://vocalcast.minepi.com' // optional if you publish to Pi Browser mainnet
-],
-
+    'https://vocal-nasturtium-3ab892.netlify.app',
+    'https://pi://vocalcast',
+    'https://vocalcast.minepi.com'
+  ],
 }));
-
-
 
 app.use(express.json());
 
@@ -40,49 +36,54 @@ const s3 = new S3Client({
   }
 });
 
-
 const upload = multer({
   storage: multerS3({
     s3: s3,
     bucket: process.env.S3_BUCKET_NAME,
+    contentType: multerS3.AUTO_CONTENT_TYPE,
     key: function (req, file, cb) {
       const timestamp = Date.now();
+      const folder = file.mimetype.startsWith('image/') ? 'screens' : 'uploads';
       const cleanName = file.originalname
-        .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        .normalize("NFD").replace(/[̀-ͯ]/g, "")
         .replace(/[^a-zA-Z0-9._-]/g, "_");
-
-      cb(null, `uploads/${timestamp}-${cleanName}`);
+      cb(null, `${folder}/${timestamp}-${cleanName}`);
     }
   })
 });
-
-
 
 // ✅ Root
 app.get('/', (req, res) => {
   res.send('🎙️ Vocalcast Backend is running 🚀');
 });
 
-// ✅ Upload Route
-app.post('/upload', upload.single('file'), (req, res) => {
-  if (!req.file) {
-  return res.status(400).json({ error: 'No file uploaded' });
-}
+// ✅ Upload Route (Audio + Screenshot + Metadata)
+app.post('/upload', upload.fields([
+  { name: 'file', maxCount: 1 },
+  { name: 'screenshot', maxCount: 1 }
+]), (req, res) => {
+  if (!req.files || !req.files['file']) {
+    return res.status(400).json({ error: 'No audio file uploaded' });
+  }
 
+  const audioFile = req.files['file'][0];
+  const imageFile = req.files['screenshot']?.[0];
 
-  // ✅ Logging file details for debugging
-  console.log("🔍 Incoming file name:", req.file.originalname);
-  console.log("📦 File type:", req.file.mimetype);
-  console.log("📏 File size:", req.file.size, "bytes");
-  console.log("✅ File uploaded to S3:", req.file.location);
+  const metadata = {
+    title: req.body.title,
+    description: req.body.description,
+    duration: req.body.duration,
+    audioUrl: audioFile.location,
+    screenshotUrl: imageFile?.location || null,
+    uploadedAt: new Date().toISOString()
+  };
 
-  res.status(200).json({
-    success: true,
-    url: req.file.location
-  });
+  console.log("🎙️ Podcast uploaded:", metadata);
+
+  // TODO: Persist metadata to DB (future enhancement)
+
+  res.status(200).json({ success: true, data: metadata });
 });
-
-
 
 // ✅ Pi login verification
 app.post('/verify-login', async (req, res) => {
