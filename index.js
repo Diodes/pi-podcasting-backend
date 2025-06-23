@@ -89,32 +89,33 @@ app.post('/upload', upload.fields([
     duration: req.body.duration,
     audioUrl: audioFile.location,
     screenshotUrl: imageFile?.location || null,
-    uploadedAt: new Date().toISOString()
+    uploadedAt: new Date().toISOString(),
+    creatorPiUsername: req.body.creator_pi_username || null
   };
 
-  console.log("🎙️ Podcast uploaded:", metadata);
+  console.log("🎙️ Uploading podcast from:", metadata.creatorPiUsername);
 
   try {
     const result = await pool.query(
-      'INSERT INTO podcasts (title, description, duration, audio_url, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      'INSERT INTO podcasts (title, description, duration, audio_url, image_url, creator_pi_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [
         metadata.title,
         metadata.description,
         metadata.duration,
         metadata.audioUrl,
-        metadata.screenshotUrl
+        metadata.screenshotUrl,
+        metadata.creatorPiUsername
       ]
     );
 
-    console.log("✅ Podcast saved to DB:", result.rows[0]);
-
-    // ✅ Only one response sent here
+    console.log("✅ Podcast saved:", result.rows[0]);
     res.status(201).json({ success: true, podcast: result.rows[0] });
   } catch (err) {
-    console.error("❌ DB insert error:", err);
+    console.error("❌ DB error:", err);
     res.status(500).json({ success: false, error: 'Database error' });
   }
 });
+
 
 
 app.post('/podcasts', async (req, res) => {
