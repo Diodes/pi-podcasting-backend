@@ -71,6 +71,26 @@ app.get('/podcasts', async (req, res) => {
   }
 });
 
+app.post("/tip", async (req, res) => {
+  const { podcastId, tipper, recipient, amount } = req.body;
+
+  if (!podcastId || !tipper || !recipient || !amount) {
+    return res.status(400).json({ success: false, message: "Missing tip data" });
+  }
+
+  try {
+    const result = await pool.query(
+      `INSERT INTO tips (podcast_id, tipper_username, recipient_username, amount)
+       VALUES ($1, $2, $3, $4) RETURNING *`,
+      [podcastId, tipper, recipient, amount]
+    );
+
+    res.json({ success: true, tip: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Failed to log tip:", err);
+    res.status(500).json({ success: false, message: "Failed to log tip" });
+  }
+});
 
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
