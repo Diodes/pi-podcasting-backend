@@ -80,8 +80,9 @@ app.post("/tip", async (req, res) => {
 
   try {
     const result = await db.query(
-      "INSERT INTO tips (podcast_id, tipper_username, recipient_username, amount) VALUES ($1, $2, $3, $4)",
-      [podcastId, tipper, recipient, amount]
+      `INSERT INTO tips (podcast_id, tipper_username, recipient_username, sender_username, amount)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [podcastId, tipper, recipient, tipper, amount] // 👈 Use tipper for sender_username too
     );
 
     console.log("✅ Tip logged to database!");
