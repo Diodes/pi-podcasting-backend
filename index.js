@@ -6,15 +6,7 @@ dotenv.config(); // ✅ load .env FIRST
 const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
-const { Pool } = require('pg');
-
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false, // Required for Render-hosted databases
-  },
-});
-
+const db = require('./db'); // ✅ use this instead of redefining a new pool
 
 const app = express();
 const PORT = process.env.PORT || 5000;
