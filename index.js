@@ -55,7 +55,7 @@ const upload = multer({
 // ✅ Root
 app.get('/podcasts', async (req, res) => {
   try {
-    const result = await pool.query('SELECT * FROM podcasts ORDER BY uploaded_at DESC');
+    const result = await db.query('SELECT * FROM podcasts ORDER BY uploaded_at DESC');
     res.json({ success: true, podcasts: result.rows });
   } catch (err) {
     console.error("❌ Error fetching podcasts:", err);
@@ -118,7 +118,7 @@ app.post('/upload', upload.fields([
   console.log("🎙️ Uploading podcast from:", metadata.creatorPiUsername);
 
   try {
-    const result = await pool.query(
+    const result = await db.query(
       'INSERT INTO podcasts (title, description, duration, audio_url, image_url, creator_pi_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [
         metadata.title,
@@ -148,7 +148,7 @@ app.post('/podcasts', async (req, res) => {
   }
 
   try {
-    const result = await pool.query(
+    const result = await db.query(
       'INSERT INTO podcasts (title, description, duration, audio_url, image_url) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [title, description, duration, audio_url, image_url]
     );
