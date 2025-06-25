@@ -74,23 +74,33 @@ app.get('/podcasts', async (req, res) => {
 app.post("/tip", async (req, res) => {
   const { podcastId, tipper, recipient, amount } = req.body;
 
+  console.log("➡️ Incoming Tip Request:");
+  console.log("Podcast ID:", podcastId);
+  console.log("Tipper:", tipper);
+  console.log("Recipient:", recipient);
+  console.log("Amount:", amount);
+
+  // Basic validation
   if (!podcastId || !tipper || !recipient || !amount) {
-    return res.status(400).json({ success: false, message: "Missing tip data" });
+    console.error("❌ Missing required fields");
+    return res.status(400).json({ success: false, error: "Missing fields" });
   }
 
   try {
-    const result = await pool.query(
-      `INSERT INTO tips (podcast_id, tipper_username, recipient_username, amount)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
+    const result = await db.query(
+      "INSERT INTO tips (podcast_id, tipper_username, recipient_username, amount) VALUES ($1, $2, $3, $4)",
       [podcastId, tipper, recipient, amount]
     );
 
-    res.json({ success: true, tip: result.rows[0] });
+    console.log("✅ Tip logged to database!");
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Failed to log tip:", err);
-    res.status(500).json({ success: false, message: "Failed to log tip" });
+    console.error("❌ Database error:", err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
+
+
 
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
