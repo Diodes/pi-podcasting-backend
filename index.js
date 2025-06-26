@@ -93,7 +93,29 @@ app.post("/tip", async (req, res) => {
   }
 });
 
+// 📥 Get all tips for a specific creator
+app.get("/tips/:username", async (req, res) => {
+  const { username } = req.params;
 
+  if (!username) {
+    return res.status(400).json({ success: false, error: "Username is required" });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT podcast_id, tipper_username, recipient_username, amount, tipped_at 
+       FROM tips 
+       WHERE recipient_username = $1 
+       ORDER BY tipped_at DESC`,
+      [username]
+    );
+
+    res.json({ success: true, tips: result.rows });
+  } catch (err) {
+    console.error("❌ Error fetching tips:", err);
+    res.status(500).json({ success: false, error: "Database error" });
+  }
+});
 
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
