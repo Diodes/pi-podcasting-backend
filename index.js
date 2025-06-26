@@ -102,17 +102,11 @@ app.get("/tips/:username", async (req, res) => {
   }
 
   try {
-    // TEMP: List all column names from the tips table
-    const schemaQuery = `
-      SELECT column_name
-      FROM information_schema.columns
-      WHERE table_name = 'tips'
-    `;
-    const schemaResult = await db.query(schemaQuery);
-    console.log("📋 Tips table columns:", schemaResult.rows.map(r => r.column_name));
-
     const result = await db.query(
-      `SELECT podcast_id, tipper_username, recipient_username, amount FROM tips WHERE recipient_username = $1`,
+      `SELECT podcast_id, tipper_username, recipient_username, amount, created_at
+       FROM tips
+       WHERE recipient_username = $1
+       ORDER BY created_at DESC`,
       [username]
     );
 
@@ -122,8 +116,6 @@ app.get("/tips/:username", async (req, res) => {
     res.status(500).json({ success: false, error: "Database error" });
   }
 });
-
-
 
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
