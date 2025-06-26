@@ -103,10 +103,10 @@ app.get("/tips/:username", async (req, res) => {
 
   try {
     const result = await db.query(
-      `SELECT podcast_id, tipper_username, recipient_username, amount, tipped_at 
+      `SELECT podcast_id, tipper_username, recipient_username, amount, created_at 
        FROM tips 
        WHERE recipient_username = $1 
-       ORDER BY tipped_at DESC`,
+       ORDER BY created_at DESC`,
       [username]
     );
 
@@ -116,6 +116,7 @@ app.get("/tips/:username", async (req, res) => {
     res.status(500).json({ success: false, error: "Database error" });
   }
 });
+
 
 app.post('/upload', upload.fields([
   { name: 'file', maxCount: 1 },
