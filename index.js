@@ -132,6 +132,8 @@ app.post('/upload', upload.fields([
     title: req.body.title,
     description: req.body.description,
     duration: req.body.duration,
+    genre: req.body.genre || null,               // ✅ NEW
+    tags: req.body.tags || null,                 // ✅ NEW (can be comma-separated string)
     audioUrl: audioFile.location,
     screenshotUrl: imageFile?.location || null,
     uploadedAt: new Date().toISOString(),
@@ -142,11 +144,16 @@ app.post('/upload', upload.fields([
 
   try {
     const result = await db.query(
-      'INSERT INTO podcasts (title, description, duration, audio_url, image_url, creator_pi_username) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      `INSERT INTO podcasts 
+        (title, description, duration, genre, tags, audio_url, image_url, creator_pi_username)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING *`,
       [
         metadata.title,
         metadata.description,
         metadata.duration,
+        metadata.genre,            // ✅ NEW
+        metadata.tags,             // ✅ NEW
         metadata.audioUrl,
         metadata.screenshotUrl,
         metadata.creatorPiUsername
@@ -160,6 +167,7 @@ app.post('/upload', upload.fields([
     res.status(500).json({ success: false, error: 'Database error' });
   }
 });
+
 
 
 
