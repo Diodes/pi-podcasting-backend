@@ -18,7 +18,7 @@ if (!PI_API_KEY) {
 
 app.use(cors({
   origin: [
-    'https://vocal-nasturtium-3ab892.netlify.app',
+    'https://pivocalcast.com',
     'https://pi://vocalcast',
     'https://vocalcast.minepi.com'
   ],
