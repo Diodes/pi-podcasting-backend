@@ -19,10 +19,10 @@ if (!PI_API_KEY) {
 app.use(cors({
   origin: [
     'https://pivocalcast.com',
-    'https://pi://vocalcast',
     'https://vocalcast.minepi.com'
-  ],
+  ]
 }));
+
 
 app.use(express.json());
 
