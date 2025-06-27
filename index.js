@@ -127,18 +127,25 @@ app.post('/upload', upload.fields([
 
   const audioFile = req.files['file'][0];
   const imageFile = req.files['screenshot']?.[0];
+  const rawTags = req.body.tags || "";
+  const tagsArray = rawTags
+    .split(',')
+    .map(t => t.trim())
+    .filter(t => t.length > 0); // removes empty strings
+
 
   const metadata = {
     title: req.body.title,
     description: req.body.description,
     duration: req.body.duration,
-    genre: req.body.genre || null,               // ✅ NEW
-    tags: req.body.tags || null,                 // ✅ NEW (can be comma-separated string)
+    genre: req.body.genre || null,
+    tags: tagsArray,  // ✅ Clean and accurate
     audioUrl: audioFile.location,
     screenshotUrl: imageFile?.location || null,
     uploadedAt: new Date().toISOString(),
     creatorPiUsername: req.body.creator_pi_username || null
   };
+
 
   console.log("🎙️ Uploading podcast from:", metadata.creatorPiUsername);
 
@@ -152,12 +159,13 @@ app.post('/upload', upload.fields([
         metadata.title,
         metadata.description,
         metadata.duration,
-        metadata.genre,            // ✅ NEW
-        metadata.tags,             // ✅ NEW
+        metadata.genre,
+        metadata.tags,               // ✅ now using consistent metadata
         metadata.audioUrl,
         metadata.screenshotUrl,
         metadata.creatorPiUsername
       ]
+
     );
 
     console.log("✅ Podcast saved:", result.rows[0]);
