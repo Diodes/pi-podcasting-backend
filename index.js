@@ -17,10 +17,13 @@ if (!PI_API_KEY) {
 }
 
 app.use(cors({
+  // Backend CORS (which you already have):
   origin: [
     'https://pivocalcast.com',
+    'https://pi://vocalcast',
     'https://vocalcast.minepi.com'
-  ]
+]
+
 }));
 
 
