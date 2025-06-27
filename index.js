@@ -220,8 +220,6 @@ app.get("/my-podcasts/:username", async (req, res) => {
 });
 
 // ✅ Pi login verification
-const crypto = require('crypto');
-
 app.post('/verify-login', async (req, res) => {
   try {
     const { user, jwt, signature } = req.body;
