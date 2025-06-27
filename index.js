@@ -183,6 +183,25 @@ app.post('/podcasts', async (req, res) => {
   }
 });
 
+// 🎙️ Get all podcasts uploaded by a specific creator
+app.get("/my-podcasts/:username", async (req, res) => {
+  const { username } = req.params;
+
+  if (!username) {
+    return res.status(400).json({ success: false, error: "Username is required" });
+  }
+
+  try {
+    const result = await db.query(
+      `SELECT * FROM podcasts WHERE creator_pi_username = $1 ORDER BY uploaded_at DESC`,
+      [username]
+    );
+    res.json({ success: true, podcasts: result.rows });
+  } catch (err) {
+    console.error("❌ Error fetching creator podcasts:", err);
+    res.status(500).json({ success: false, error: "Database query failed" });
+  }
+});
 
 // ✅ Pi login verification
 app.post('/verify-login', async (req, res) => {
