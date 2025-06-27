@@ -220,6 +220,8 @@ app.get("/my-podcasts/:username", async (req, res) => {
 });
 
 // ✅ Pi login verification
+const crypto = require('crypto');
+
 app.post('/verify-login', async (req, res) => {
   try {
     const { user, jwt, signature } = req.body;
@@ -229,16 +231,19 @@ app.post('/verify-login', async (req, res) => {
     }
 
     const signedMessage = JSON.stringify({ user, jwt });
-    const publicKey = '302a300506032b6570032100c7c716f5e3bbf579cc0fa7ff61d1b4f60e3546cfab580093df1fa3dc7f9ef6d6';
+
+    const publicKey = `
+-----BEGIN PUBLIC KEY-----
+MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEx8cW9u77V5zA+n/2HRtPYONUbPq1gAk9
+8fo9x/nn21o=
+-----END PUBLIC KEY-----
+`;
 
     const verify = crypto.createVerify('SHA256');
     verify.update(signedMessage);
     verify.end();
 
-    const isValid = verify.verify(
-      Buffer.from(publicKey, 'hex'),
-      Buffer.from(signature, 'base64')
-    );
+    const isValid = verify.verify(publicKey, Buffer.from(signature, 'base64'));
 
     if (!isValid) {
       return res.status(401).json({ error: 'Invalid signature' });
@@ -254,6 +259,7 @@ app.post('/verify-login', async (req, res) => {
     res.status(500).json({ error: 'Server error during verification' });
   }
 });
+
 
 // ✅ Payment Approval
 app.post('/approve-payment', async (req, res) => {
