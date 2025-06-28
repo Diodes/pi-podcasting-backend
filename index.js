@@ -19,11 +19,11 @@ if (!PI_API_KEY) {
 app.use(cors({
   origin: [
     'https://pivocalcast.com',
-    'https://www.pivocalcast.com', // include www if it's also allowed
     'https://pi://vocalcast',
-    'https://vocalcast.minepi.com' // legacy entry if needed
+    'https://vocalcast.minepi.com'
   ],
 }));
+
 
 
 
