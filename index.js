@@ -96,6 +96,7 @@ app.post("/tip", async (req, res) => {
   }
 });
 
+
 // 📥 Get all tips for a specific creator
 app.get("/tips/:username", async (req, res) => {
   const { username } = req.params;
@@ -178,8 +179,6 @@ app.post('/upload', upload.fields([
     res.status(500).json({ success: false, error: 'Database error' });
   }
 });
-
-
 
 
 app.post('/podcasts', async (req, res) => {
