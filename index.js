@@ -55,6 +55,10 @@ const upload = multer({
   })
 });
 
+app.get("/ping", (req, res) => {
+  res.send("pong");
+});
+
 // ✅ Root
 app.get('/podcasts', async (req, res) => {
   try {
