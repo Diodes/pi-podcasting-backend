@@ -7,6 +7,8 @@ const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const db = require('./db'); // ✅ use this instead of redefining a new pool
+const pool = require('./db');
+
 
 const app = express();
 const PORT = process.env.PORT || 5000;
