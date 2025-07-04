@@ -105,6 +105,54 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
   }
 });
 
+app.post('/request-payout', async (req, res) => {
+  const { username } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ success: false, error: "Username is required" });
+  }
+
+  try {
+    // Step 1: Find last payout date
+    const lastPayoutResult = await db.query(
+      'SELECT MAX(payout_date) as last_payout FROM payouts WHERE username = $1',
+      [username]
+    );
+    const lastPayout = lastPayoutResult.rows[0].last_payout || '1970-01-01';
+
+    // Step 2: Calculate unpaid tips
+    const tipsResult = await db.query(
+      'SELECT COALESCE(SUM(amount), 0) AS total FROM tips WHERE recipient_username = $1 AND created_at > $2',
+      [username, lastPayout]
+    );
+
+    const unpaidTips = parseFloat(tipsResult.rows[0].total);
+
+    if (unpaidTips < 3) {
+      return res.status(403).json({
+        success: false,
+        error: `Minimum payout is 3 Pi. You have ${unpaidTips.toFixed(4)} Pi.`,
+      });
+    }
+
+    // Step 3: Log the payout
+    await db.query(
+      `INSERT INTO payouts (username, amount) VALUES ($1, $2)`,
+      [username, unpaidTips]
+    );
+
+    // Step 4: Return success
+    res.json({
+      success: true,
+      message: `✅ Payout of ${unpaidTips.toFixed(4)} Pi logged.`,
+      amount: unpaidTips
+    });
+
+  } catch (err) {
+    console.error("❌ Error processing payout request:", err);
+    res.status(500).json({ success: false, error: 'Server error' });
+  }
+});
 
 app.post("/tip", async (req, res) => {
   const { podcastId, tipper, recipient, amount } = req.body;
