@@ -155,13 +155,14 @@ app.post('/request-payout', async (req, res) => {
 });
 
 app.post("/tip", async (req, res) => {
-  const { podcastId, tipper, recipient, amount } = req.body;
+    console.log("🔥 /tip endpoint hit");
+    const { podcastId, tipper, recipient, amount } = req.body;
 
-  console.log("➡️ Incoming Tip Request:");
-  console.log("Podcast ID:", podcastId);
-  console.log("Tipper:", tipper);
-  console.log("Recipient:", recipient);
-  console.log("Amount:", amount);
+    console.log("➡️ Incoming Tip Request:");
+    console.log("Podcast ID:", podcastId);
+    console.log("Tipper:", tipper);
+    console.log("Recipient:", recipient);
+    console.log("Amount:", amount);
 
   // Basic validation
   if (!podcastId || !tipper || !recipient || !amount) {
