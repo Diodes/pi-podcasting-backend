@@ -7,8 +7,6 @@ const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const db = require('./db'); // ✅ use this instead of redefining a new pool
-const pool = require('./db');
-
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -72,11 +70,10 @@ app.get('/podcasts', async (req, res) => {
   }
 });
 
-// GET /total-tips/:username
 app.get('/total-tips/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    const result = await pool.query(
+    const result = await db.query(
       'SELECT COALESCE(SUM(amount), 0) AS total FROM tips WHERE recipient_username = $1',
       [username]
     );
@@ -87,17 +84,16 @@ app.get('/total-tips/:username', async (req, res) => {
   }
 });
 
-// GET /tips-since-last-payout/:username
 app.get('/tips-since-last-payout/:username', async (req, res) => {
   const { username } = req.params;
   try {
-    const lastPayoutResult = await pool.query(
+    const lastPayoutResult = await db.query(
       'SELECT MAX(payout_date) as last_payout FROM payouts WHERE username = $1',
       [username]
     );
     const lastPayout = lastPayoutResult.rows[0].last_payout || '1970-01-01';
 
-    const tipsResult = await pool.query(
+    const tipsResult = await db.query(
       'SELECT COALESCE(SUM(amount), 0) AS total FROM tips WHERE recipient_username = $1 AND created_at > $2',
       [username, lastPayout]
     );
@@ -108,6 +104,7 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
     res.status(500).json({ error: 'DB error' });
   }
 });
+
 
 app.post("/tip", async (req, res) => {
   const { podcastId, tipper, recipient, amount } = req.body;
