@@ -144,6 +144,8 @@ app.post('/request-payout', async (req, res) => {
 
     // 3. Initiate Pi Payment
     console.log(`🚀 Initiating Pi payout of ${unpaidTips} Pi to ${username} (UID: ${uid})...`);
+    console.log("📤 DEBUG: Raw recipient_uid being sent to Pi API:", uid); // ✅ DEBUG LINE
+
 
     const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
       method: "POST",
