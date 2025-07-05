@@ -109,6 +109,7 @@ app.post('/request-payout', async (req, res) => {
   const { username, uid } = req.body;
 
   if (!username || !uid) {
+    console.warn("⚠️ Missing username or uid in request body:", req.body);
     return res.status(400).json({
       success: false,
       error: "Username and UID are required for payout",
@@ -116,6 +117,8 @@ app.post('/request-payout', async (req, res) => {
   }
 
   try {
+    console.log(`🔍 Starting payout request for username: ${username}, uid: ${uid}`);
+
     // 1. Get last payout
     const lastPayoutResult = await db.query(
       'SELECT MAX(payout_date) as last_payout FROM payouts WHERE username = $1',
@@ -130,6 +133,8 @@ app.post('/request-payout', async (req, res) => {
     );
     const unpaidTips = parseFloat(tipsResult.rows[0].total);
 
+    console.log(`💸 Calculated unpaid tips for ${username}: ${unpaidTips} Pi since ${lastPayout}`);
+
     if (unpaidTips < 3) {
       return res.status(403).json({
         success: false,
@@ -138,7 +143,7 @@ app.post('/request-payout', async (req, res) => {
     }
 
     // 3. Initiate Pi Payment
-    console.log(`🚀 Initiating Pi payout of ${unpaidTips} Pi to ${username}...`);
+    console.log(`🚀 Initiating Pi payout of ${unpaidTips} Pi to ${username} (UID: ${uid})...`);
 
     const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
       method: "POST",
@@ -150,7 +155,7 @@ app.post('/request-payout', async (req, res) => {
         amount: unpaidTips.toFixed(4),
         memo: `Payout to ${username} from Vocalcast`,
         metadata: { type: "payout", username },
-        recipient_uid: uid, // ✅ this is now the actual UID, not username
+        recipient_uid: uid,  // ✅ Critical field
       }),
     });
 
@@ -210,6 +215,7 @@ app.post('/request-payout', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 
 app.post("/tip", async (req, res) => {
