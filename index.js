@@ -136,6 +136,8 @@ app.post('/request-payout', async (req, res) => {
     }
 
     // 3. Initiate Pi Payment via API
+    console.log(`🚀 Initiating Pi payout of ${unpaidTips} Pi to ${username}...`);
+
     const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
       method: "POST",
       headers: {
@@ -146,16 +148,18 @@ app.post('/request-payout', async (req, res) => {
         amount: unpaidTips.toFixed(4),
         memo: `Payout to ${username} from Vocalcast`,
         metadata: { type: "payout", username },
-        recipient_uid: username, // assumes username is Pi uid
+        recipient_uid: username, // Assuming this is a valid UID or username
       }),
     });
 
     const paymentInitData = await paymentInitRes.json();
+    console.log("📡 Pi API response:", paymentInitData);
 
     if (!paymentInitRes.ok) {
       console.error("❌ Failed to create payment:", paymentInitData);
       return res.status(500).json({ success: false, error: "Payment initiation failed" });
     }
+
 
     const paymentId = paymentInitData.identifier;
 
