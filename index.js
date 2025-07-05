@@ -106,10 +106,13 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
 });
 
 app.post('/request-payout', async (req, res) => {
-  const { username } = req.body;
+  const { username, uid } = req.body;
 
-  if (!username) {
-    return res.status(400).json({ success: false, error: "Username is required" });
+  if (!username || !uid) {
+    return res.status(400).json({
+      success: false,
+      error: "Username and UID are required for payout",
+    });
   }
 
   try {
@@ -125,7 +128,6 @@ app.post('/request-payout', async (req, res) => {
       'SELECT COALESCE(SUM(amount), 0) AS total FROM tips WHERE recipient_username = $1 AND created_at > $2',
       [username, lastPayout]
     );
-
     const unpaidTips = parseFloat(tipsResult.rows[0].total);
 
     if (unpaidTips < 3) {
@@ -135,7 +137,7 @@ app.post('/request-payout', async (req, res) => {
       });
     }
 
-    // 3. Initiate Pi Payment via API
+    // 3. Initiate Pi Payment
     console.log(`🚀 Initiating Pi payout of ${unpaidTips} Pi to ${username}...`);
 
     const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
@@ -148,7 +150,7 @@ app.post('/request-payout', async (req, res) => {
         amount: unpaidTips.toFixed(4),
         memo: `Payout to ${username} from Vocalcast`,
         metadata: { type: "payout", username },
-        recipient_uid: username, // Assuming this is a valid UID or username
+        recipient_uid: uid, // ✅ this is now the actual UID, not username
       }),
     });
 
@@ -159,7 +161,6 @@ app.post('/request-payout', async (req, res) => {
       console.error("❌ Failed to create payment:", paymentInitData);
       return res.status(500).json({ success: false, error: "Payment initiation failed" });
     }
-
 
     const paymentId = paymentInitData.identifier;
 
@@ -174,7 +175,7 @@ app.post('/request-payout', async (req, res) => {
       throw new Error("Approval failed: " + errText);
     }
 
-    // 5. Complete Payment with dummy txid
+    // 5. Complete Payment
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: "POST",
       headers: {
@@ -191,7 +192,7 @@ app.post('/request-payout', async (req, res) => {
 
     console.log(`✅ Paid ${unpaidTips} Pi to ${username} (payment ID: ${paymentId})`);
 
-    // 6. Log it to the database
+    // 6. Log payout
     await db.query(
       `INSERT INTO payouts (username, amount) VALUES ($1, $2)`,
       [username, unpaidTips]
