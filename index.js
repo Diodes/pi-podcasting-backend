@@ -24,7 +24,7 @@ app.use(cors({
   ],
 }));
 
-// At top of your app (temporary test route)
+/*// At top of your app (temporary test route)
 app.get("/test-uid/:uid", async (req, res) => {
   const { uid } = req.params;
 
@@ -41,6 +41,7 @@ app.get("/test-uid/:uid", async (req, res) => {
     return res.status(500).json({ error: err.message });
   }
 });
+*/
 
 app.use(express.json());
 
@@ -233,6 +234,52 @@ app.post('/request-payout', async (req, res) => {
   }
 });
 
+app.post('/report-podcast', async (req, res) => {
+  const { podcastId } = req.body;
+
+  if (!podcastId) {
+    return res.status(400).json({ success: false, error: "Missing podcast ID" });
+  }
+
+  try {
+    const result = await db.query(`
+      UPDATE podcasts
+      SET flag_count = flag_count + 1
+      WHERE id = $1
+      RETURNING flag_count, creator_pi_username
+    `, [podcastId]);
+
+    const { flag_count, creator_pi_username } = result.rows[0];
+
+    if (flag_count >= 5) {
+      // Hide this podcast
+      await db.query(`
+        UPDATE podcasts SET hidden_due_to_flags = true WHERE id = $1
+      `, [podcastId]);
+
+      // Count how many hidden podcasts this creator has
+      const hiddenResult = await db.query(`
+        SELECT COUNT(*) FROM podcasts 
+        WHERE creator_pi_username = $1 AND hidden_due_to_flags = true
+      `, [creator_pi_username]);
+
+      const hiddenCount = parseInt(hiddenResult.rows[0].count);
+
+      if (hiddenCount >= 3) {
+        // Ban this creator
+        await db.query(`
+          UPDATE podcasts SET creator_banned = true 
+          WHERE creator_pi_username = $1
+        `, [creator_pi_username]);
+      }
+    }
+
+    res.json({ success: true, message: "Flag processed." });
+  } catch (err) {
+    console.error("❌ Error flagging podcast:", err);
+    res.status(500).json({ success: false, error: "Database error" });
+  }
+});
 
 
 app.post("/tip", async (req, res) => {
