@@ -236,12 +236,30 @@ app.post('/request-payout', async (req, res) => {
 
 app.post('/report-podcast', async (req, res) => {
   const { podcastId } = req.body;
+  const username = req.headers['x-pi-username']; // or pull from req.body if needed
 
-  if (!podcastId) {
-    return res.status(400).json({ success: false, error: "Missing podcast ID" });
+  if (!podcastId || !username) {
+    return res.status(400).json({ success: false, error: "Missing podcast ID or username" });
   }
 
   try {
+    // ✅ Step 1: Check if user already flagged this podcast
+    const existingFlag = await db.query(
+      `SELECT id FROM flags WHERE podcast_id = $1 AND flagged_by = $2`,
+      [podcastId, username]
+    );
+
+    if (existingFlag.rows.length > 0) {
+      return res.status(409).json({ success: false, error: "You already flagged this podcast." });
+    }
+
+    // ✅ Step 2: Insert flag record
+    await db.query(
+      `INSERT INTO flags (podcast_id, flagged_by) VALUES ($1, $2)`,
+      [podcastId, username]
+    );
+
+    // ✅ Step 3: Update flag_count on podcast
     const result = await db.query(`
       UPDATE podcasts
       SET flag_count = flag_count + 1
@@ -251,13 +269,12 @@ app.post('/report-podcast', async (req, res) => {
 
     const { flag_count, creator_pi_username } = result.rows[0];
 
+    // ✅ Step 4: Check if podcast should be hidden
     if (flag_count >= 5) {
-      // Hide this podcast
       await db.query(`
         UPDATE podcasts SET hidden_due_to_flags = true WHERE id = $1
       `, [podcastId]);
 
-      // Count how many hidden podcasts this creator has
       const hiddenResult = await db.query(`
         SELECT COUNT(*) FROM podcasts 
         WHERE creator_pi_username = $1 AND hidden_due_to_flags = true
@@ -266,7 +283,6 @@ app.post('/report-podcast', async (req, res) => {
       const hiddenCount = parseInt(hiddenResult.rows[0].count);
 
       if (hiddenCount >= 3) {
-        // Ban this creator
         await db.query(`
           UPDATE podcasts SET creator_banned = true 
           WHERE creator_pi_username = $1
