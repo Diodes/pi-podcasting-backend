@@ -244,7 +244,7 @@ app.post('/report-podcast', async (req, res) => {
   try {
     // 👮 Check if this user has already flagged this podcast
     const existingFlag = await db.query(
-      `SELECT * FROM flags WHERE podcast_id = $1 AND flagger = $2`,
+      `SELECT * FROM flags WHERE podcast_id = $1 AND flagged_by = $2`, // 🔧 fixed column name
       [podcastId, flagger]
     );
 
@@ -254,7 +254,7 @@ app.post('/report-podcast', async (req, res) => {
 
     // 🪪 Insert new flag
     await db.query(
-      `INSERT INTO flags (podcast_id, flagger) VALUES ($1, $2)`,
+      `INSERT INTO flags (podcast_id, flagged_by) VALUES ($1, $2)`, // 🔧 fixed column name
       [podcastId, flagger]
     );
 
@@ -298,6 +298,7 @@ app.post('/report-podcast', async (req, res) => {
     res.status(500).json({ success: false, error: "Database error" });
   }
 });
+
 
 app.post("/tip", async (req, res) => {
     console.log("🔥 /tip endpoint hit");

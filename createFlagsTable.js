@@ -1,30 +1,24 @@
 // createFlagsTable.js
 require('dotenv').config();
-const { Pool } = require('pg');
+const { Pool } = require("pg");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false } // ✅ Render requires this
+  ssl: { rejectUnauthorized: false },
 });
 
-async function createFlagsTable() {
+async function addFlaggerColumn() {
   try {
     await pool.query(`
-      CREATE TABLE IF NOT EXISTS flags (
-        id SERIAL PRIMARY KEY,
-        podcast_id INTEGER NOT NULL REFERENCES podcasts(id) ON DELETE CASCADE,
-        flagged_by TEXT NOT NULL,
-        UNIQUE (podcast_id, flagged_by)
-      );
+      ALTER TABLE flags
+      ADD COLUMN flagger TEXT;
     `);
-
-    console.log("✅ flags table created or already exists.");
+    console.log("✅ 'flagger' column added to 'flags' table.");
   } catch (err) {
-    console.error("❌ Error creating flags table:", err);
+    console.error("❌ Error adding 'flagger' column:", err);
   } finally {
     await pool.end();
-    console.log("🛑 Connection closed.");
   }
 }
 
-createFlagsTable();
+addFlaggerColumn();
