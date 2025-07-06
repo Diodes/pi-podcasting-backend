@@ -235,31 +235,30 @@ app.post('/request-payout', async (req, res) => {
 });
 
 app.post('/report-podcast', async (req, res) => {
-  const { podcastId } = req.body;
-  const username = req.headers['x-pi-username']; // or pull from req.body if needed
+  const { podcastId, flagger } = req.body;
 
-  if (!podcastId || !username) {
-    return res.status(400).json({ success: false, error: "Missing podcast ID or username" });
+  if (!podcastId || !flagger) {
+    return res.status(400).json({ success: false, error: "Missing podcast ID or flagger username" });
   }
 
   try {
-    // ✅ Step 1: Check if user already flagged this podcast
+    // 👮 Check if this user has already flagged this podcast
     const existingFlag = await db.query(
-      `SELECT id FROM flags WHERE podcast_id = $1 AND flagged_by = $2`,
-      [podcastId, username]
+      `SELECT * FROM flags WHERE podcast_id = $1 AND flagger = $2`,
+      [podcastId, flagger]
     );
 
     if (existingFlag.rows.length > 0) {
-      return res.status(409).json({ success: false, error: "You already flagged this podcast." });
+      return res.status(409).json({ success: false, message: "You've already flagged this podcast." });
     }
 
-    // ✅ Step 2: Insert flag record
+    // 🪪 Insert new flag
     await db.query(
-      `INSERT INTO flags (podcast_id, flagged_by) VALUES ($1, $2)`,
-      [podcastId, username]
+      `INSERT INTO flags (podcast_id, flagger) VALUES ($1, $2)`,
+      [podcastId, flagger]
     );
 
-    // ✅ Step 3: Update flag_count on podcast
+    // 🔢 Increment flag count on podcast
     const result = await db.query(`
       UPDATE podcasts
       SET flag_count = flag_count + 1
@@ -269,12 +268,14 @@ app.post('/report-podcast', async (req, res) => {
 
     const { flag_count, creator_pi_username } = result.rows[0];
 
-    // ✅ Step 4: Check if podcast should be hidden
+    // 🚫 Hide if >= 5 flags
     if (flag_count >= 5) {
-      await db.query(`
-        UPDATE podcasts SET hidden_due_to_flags = true WHERE id = $1
-      `, [podcastId]);
+      await db.query(
+        `UPDATE podcasts SET hidden_due_to_flags = true WHERE id = $1`,
+        [podcastId]
+      );
 
+      // 🔍 Count hidden podcasts by creator
       const hiddenResult = await db.query(`
         SELECT COUNT(*) FROM podcasts 
         WHERE creator_pi_username = $1 AND hidden_due_to_flags = true
@@ -282,6 +283,7 @@ app.post('/report-podcast', async (req, res) => {
 
       const hiddenCount = parseInt(hiddenResult.rows[0].count);
 
+      // ❌ Ban creator if 3 or more hidden
       if (hiddenCount >= 3) {
         await db.query(`
           UPDATE podcasts SET creator_banned = true 
@@ -290,13 +292,12 @@ app.post('/report-podcast', async (req, res) => {
       }
     }
 
-    res.json({ success: true, message: "Flag processed." });
+    res.json({ success: true, message: "Podcast flagged successfully." });
   } catch (err) {
     console.error("❌ Error flagging podcast:", err);
     res.status(500).json({ success: false, error: "Database error" });
   }
 });
-
 
 app.post("/tip", async (req, res) => {
     console.log("🔥 /tip endpoint hit");
