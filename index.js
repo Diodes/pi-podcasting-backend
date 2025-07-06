@@ -24,8 +24,23 @@ app.use(cors({
   ],
 }));
 
-//comment for testing again
+// At top of your app (temporary test route)
+app.get("/test-uid/:uid", async (req, res) => {
+  const { uid } = req.params;
 
+  try {
+    const piRes = await fetch(`https://api.minepi.com/v2/users/${uid}`, {
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`
+      }
+    });
+
+    const data = await piRes.json();
+    return res.json({ status: piRes.status, data });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
+  }
+});
 
 app.use(express.json());
 
