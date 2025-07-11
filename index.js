@@ -122,18 +122,18 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
 });
 
 app.post('/request-payout', async (req, res) => {
-  const { creatorUsername } = req.body;
+  const { creatorUsername, uid } = req.body;
 
-  if (!creatorUsername) {
-    console.warn("⚠️ Missing creatorUsername in request body:", req.body);
+  if (!creatorUsername || !uid) {
+    console.warn("⚠️ Missing creatorUsername or uid in request body:", req.body);
     return res.status(400).json({
       success: false,
-      error: "creatorUsername is required for payout",
+      error: "creatorUsername and uid are required for payout",
     });
   }
 
   try {
-    // Get total unpaid tips
+    // 1. Get total unpaid tips
     const tipsRes = await db.query(`
       SELECT SUM(amount) AS total
       FROM tips
@@ -149,30 +149,80 @@ app.post('/request-payout', async (req, res) => {
       });
     }
 
-    // Split into payout + platform fee
+    // 2. Split into payout and fee
     const platformFee = parseFloat((totalTips * 0.10).toFixed(6));
     const payoutAmount = parseFloat((totalTips - platformFee).toFixed(6));
 
-    // Insert into payouts table
+    // 3. Create payment with Pi API
+    const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        amount: payoutAmount.toFixed(4),
+        memo: `Payout to ${creatorUsername} from Vocalcast`,
+        metadata: { type: "creator_payout", creatorUsername },
+        recipient_uid: uid,
+      }),
+    });
+
+    const paymentInitData = await paymentInitRes.json();
+    if (!paymentInitRes.ok) {
+      console.error("❌ Failed to initiate Pi payment:", paymentInitData);
+      return res.status(500).json({ success: false, error: "Payment initiation failed" });
+    }
+
+    const paymentId = paymentInitData.identifier;
+
+    // 4. Approve payment
+    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`,
+      },
+    });
+
+    if (!approveRes.ok) {
+      const errText = await approveRes.text();
+      throw new Error("Approval failed: " + errText);
+    }
+
+    // 5. Complete payment
+    const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ txid: `manual_payout_${Date.now()}` }),
+    });
+
+    if (!completeRes.ok) {
+      const errText = await completeRes.text();
+      throw new Error("Completion failed: " + errText);
+    }
+
+    // 6. Log payout
     await db.query(`
       INSERT INTO payouts (creator_username, amount_paid, platform_fee)
       VALUES ($1, $2, $3)
     `, [creatorUsername, payoutAmount, platformFee]);
 
-    // Mark tips as paid
+    // 7. Mark tips as paid
     await db.query(`
       UPDATE tips
       SET paid = true
       WHERE recipient_username = $1 AND paid = false
     `, [creatorUsername]);
 
-    // Response
     return res.json({
       success: true,
       payoutAmount,
       platformFee,
       totalTips,
-      message: `✅ Logged payout of ${payoutAmount} Pi to ${creatorUsername}. 10% fee retained.`,
+      message: `✅ Sent ${payoutAmount} Pi to ${creatorUsername}. 10% fee retained.`,
     });
 
   } catch (err) {
@@ -180,6 +230,7 @@ app.post('/request-payout', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+
 
 
 app.post('/report-podcast', async (req, res) => {
