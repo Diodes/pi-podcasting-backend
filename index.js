@@ -7,7 +7,6 @@ const fetch = require('node-fetch');
 const multer = require('multer');
 const multerS3 = require('multer-s3');
 const db = require('./db'); // ✅ use this instead of redefining a new pool
-const [logMessage, setLogMessage] = useState("");
 
 
 const app = express();
