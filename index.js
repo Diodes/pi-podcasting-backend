@@ -134,9 +134,8 @@ app.post('/request-payout', async (req, res) => {
   }
 
   try {
-    console.log(`🔍 [request-payout] Received payout request for: ${creatorUsername} (UID: ${uid})`);
+    console.log(`📥 [request-payout] Logging payout for: ${creatorUsername}`);
 
-    // 1. Fetch total unpaid tips
     const tipsRes = await db.query(`
       SELECT SUM(amount) AS total
       FROM tips
@@ -144,106 +143,36 @@ app.post('/request-payout', async (req, res) => {
     `, [creatorUsername]);
 
     const totalTips = parseFloat(tipsRes.rows[0].total || 0);
-    console.log(`💰 [request-payout] Total unpaid tips for ${creatorUsername}: ${totalTips} Pi`);
 
     if (totalTips < 3) {
-      console.warn(`🚫 [request-payout] Insufficient tip balance: ${totalTips} Pi`);
       return res.status(403).json({
         success: false,
         error: `Minimum payout is 3 Pi. You have ${totalTips.toFixed(4)} Pi.`,
       });
     }
 
-    // 2. Calculate payout and fee
     const platformFee = parseFloat((totalTips * 0.10).toFixed(6));
     const payoutAmount = parseFloat((totalTips - platformFee).toFixed(6));
-    console.log(`💸 [request-payout] Payout: ${payoutAmount} Pi | Fee: ${platformFee} Pi`);
 
-    // 3. Initiate payment with Pi API
-    console.log(`📤 [request-payout] Sending payment initiation request...`);
-    const paymentInitRes = await fetch("https://api.minepi.com/v2/payments", {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        amount: parseFloat(payoutAmount),
-        memo: `Payout to ${creatorUsername} from Vocalcast`,
-        metadata: { type: "creator_payout", creatorUsername },
-        recipient_uid: uid,
-      }),
-    });
-
-    const paymentInitData = await paymentInitRes.json();
-    console.log("📦 [request-payout] Payment init response:", paymentInitData);
-
-    if (!paymentInitRes.ok) {
-      console.error("❌ [request-payout] Pi payment initiation failed:", paymentInitData);
-      return res.status(500).json({ success: false, error: "Payment initiation failed" });
-    }
-
-    const paymentId = paymentInitData.identifier;
-    console.log("✅ [request-payout] Created payment with ID:", paymentId);
-
-    // 4. Approve payment
-    console.log("🟢 [request-payout] Approving payment...");
-    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`,
-      },
-    });
-
-    if (!approveRes.ok) {
-      const errText = await approveRes.text();
-      console.error("❌ [request-payout] Payment approval failed:", errText);
-      throw new Error("Approval failed: " + errText);
-    }
-    console.log("✅ [request-payout] Payment approved.");
-
-    // 5. Complete payment
-    console.log("🟢 [request-payout] Completing payment...");
-    const txid = `manual_payout_${Date.now()}`;
-    const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
-      method: "POST",
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ txid }),
-    });
-
-    if (!completeRes.ok) {
-      const errText = await completeRes.text();
-      console.error("❌ [request-payout] Payment completion failed:", errText);
-      throw new Error("Completion failed: " + errText);
-    }
-    console.log("✅ [request-payout] Payment completed with txid:", txid);
-
-    // 6. Log payout
-    console.log("📝 [request-payout] Logging payout in DB...");
     await db.query(`
       INSERT INTO payouts (creator_username, amount_paid, platform_fee)
       VALUES ($1, $2, $3)
     `, [creatorUsername, payoutAmount, platformFee]);
 
-    // 7. Mark tips as paid
-    console.log("✅ [request-payout] Marking all unpaid tips as paid...");
     const updateRes = await db.query(`
       UPDATE tips
       SET paid = true
       WHERE recipient_username = $1 AND paid = false
     `, [creatorUsername]);
 
-    console.log(`🎉 [request-payout] Payout finished. Updated ${updateRes.rowCount} tips.`);
+    console.log(`✅ [request-payout] Payout logged. Updated ${updateRes.rowCount} tips.`);
 
     return res.json({
       success: true,
       payoutAmount,
       platformFee,
       totalTips,
-      message: `✅ Sent ${payoutAmount} Pi to ${creatorUsername}. 10% fee retained.`,
+      message: `✅ Logged payout of ${payoutAmount} Pi to ${creatorUsername}.`,
     });
 
   } catch (err) {
@@ -251,8 +180,6 @@ app.post('/request-payout', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
-
 
 
 app.post('/report-podcast', async (req, res) => {
