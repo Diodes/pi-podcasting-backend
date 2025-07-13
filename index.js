@@ -168,7 +168,7 @@ app.post('/request-payout', async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        amount: payoutAmount.toFixed(4),
+        amount: parseFloat(payoutAmount),
         memo: `Payout to ${creatorUsername} from Vocalcast`,
         metadata: { type: "creator_payout", creatorUsername },
         recipient_uid: uid,
