@@ -448,9 +448,14 @@ MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEx8cW9u77V5zA+n/2HRtPYONUbPq1gAk9
 app.post('/approve-payment', async (req, res) => {
   const { paymentId } = req.body;
 
+  console.log("📬 [Backend] /approve-payment hit! Incoming payload:", req.body);  // ✅ ADD THIS
+
   if (!paymentId) {
+    console.warn("⚠️ [approve-payment] Missing paymentId");
     return res.status(400).json({ success: false, error: "Missing paymentId" });
   }
+
+  // existing code continues...
 
   try {
     console.log("🟢 [approve-payment] Approving payment ID:", paymentId);
