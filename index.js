@@ -447,47 +447,36 @@ MFYwEAYHKoZIzj0CAQYFK4EEAAoDQgAEx8cW9u77V5zA+n/2HRtPYONUbPq1gAk9
 // ✅ Payment Approval
 app.post('/approve-payment', async (req, res) => {
   const { paymentId } = req.body;
-  console.log("📥 Approve Payment HIT:", paymentId);
 
-  if (!PI_API_KEY) {
-    return res.status(500).json({ success: false, message: "Missing PI_API_KEY" });
+  if (!paymentId) {
+    return res.status(400).json({ success: false, error: "Missing paymentId" });
   }
-
-  const headers = {
-    Authorization: `Key ${PI_API_KEY}`,
-    "Content-Type": "application/json",
-  };
 
   try {
-    const fetchPayment = await fetch(`https://api.minepi.com/v2/payments/${paymentId}`, {
-      method: "GET",
-      headers,
+    console.log("🟢 [approve-payment] Approving payment ID:", paymentId);
+
+    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+      method: "POST",
+      headers: {
+        Authorization: `Key ${process.env.PI_API_KEY}`,
+      },
     });
 
-    const payment = await fetchPayment.json();
-
-    if (!payment.status.developer_approved && !payment.status.cancelled) {
-      const approve = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
-        method: "POST",
-        headers,
-      });
-
-      if (!approve.ok) {
-        const errText = await approve.text();
-        throw new Error("Pi approval failed: " + errText);
-      }
-
-      console.log("✅ Payment approved on Pi Network");
-      res.json({ success: true });
-    } else {
-      console.log("⚠️ Payment already approved or cancelled");
-      res.json({ success: false, message: "Already approved or cancelled" });
+    if (!approveRes.ok) {
+      const errorText = await approveRes.text();
+      console.error("❌ [approve-payment] Approval failed:", errorText);
+      return res.status(500).json({ success: false, error: "Approval failed" });
     }
+
+    console.log("✅ [approve-payment] Payment approved successfully.");
+    return res.json({ success: true });
+
   } catch (err) {
-    console.error("❌ Error approving payment:", err);
-    res.status(500).json({ success: false, message: err.message });
+    console.error("🔥 [approve-payment] Error:", err);
+    return res.status(500).json({ success: false, error: "Server error during approval" });
   }
 });
+
 
 // ✅ Payment Completion
 app.post('/complete-payment', async (req, res) => {
