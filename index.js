@@ -44,6 +44,25 @@ app.get("/test-uid/:uid", async (req, res) => {
 });
 */
 
+app.get("/test-api-key", async (req, res) => {
+  if (!PI_API_KEY) {
+    return res.status(500).json({ success: false, error: "No PI_API_KEY set in env" });
+  }
+
+  try {
+    const piRes = await fetch("https://api.minepi.com/v2/me", {
+      headers: { Authorization: `Key ${PI_API_KEY}` }
+    });
+
+    const result = await piRes.json();
+    return res.status(piRes.status).json({ success: true, data: result });
+  } catch (err) {
+    console.error("❌ Test API key failed:", err);
+    return res.status(500).json({ success: false, error: err.message });
+  }
+});
+
+
 app.use(express.json());
 
 // ✅ AWS S3 setup
