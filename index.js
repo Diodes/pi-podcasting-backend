@@ -50,12 +50,17 @@ app.get("/test-api-key", async (req, res) => {
   }
 
   try {
-    const piRes = await fetch("https://api.minepi.com/v2/me", {
+    const piRes = await fetch("https://api.minepi.com/v2/payments", {
       headers: { Authorization: `Key ${PI_API_KEY}` }
     });
 
-    const result = await piRes.json();
-    return res.status(piRes.status).json({ success: true, data: result });
+    const text = await piRes.text();
+
+    return res.status(piRes.status).json({
+      success: true,
+      note: "This is a raw response from /v2/payments to confirm API key works",
+      response: text
+    });
   } catch (err) {
     console.error("❌ Test API key failed:", err);
     return res.status(500).json({ success: false, error: err.message });
