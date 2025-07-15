@@ -17,6 +17,8 @@ if (!PI_API_KEY) {
   console.warn("⚠️ WARNING: PI_API_KEY not set in .env");
 }
 
+app.use(express.json());
+
 app.use(cors({
   origin: [
     'https://pivocalcast.com',
@@ -56,9 +58,6 @@ app.post('/wallet-address', async (req, res) => {
   }
 });
 
-
-
-app.use(express.json());
 
 // ✅ AWS S3 setup
 const { S3Client } = require('@aws-sdk/client-s3');
