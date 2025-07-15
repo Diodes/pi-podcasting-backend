@@ -213,6 +213,36 @@ app.post('/request-payout', async (req, res) => {
   }
 });
 
+app.get('/admin/payouts', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT id, creator_username, amount_paid, paid_to, txid, payout_date, status
+      FROM payouts
+      ORDER BY payout_date DESC
+      LIMIT 100
+    `);
+    res.json({ success: true, payouts: result.rows });
+  } catch (err) {
+    console.error("❌ Error fetching payouts:", err);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+app.patch('/admin/payouts/:id/fulfill', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await db.query(
+      `UPDATE payouts SET status = 'fulfilled' WHERE id = $1 RETURNING *`,
+      [id]
+    );
+    res.json({ success: true, payout: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Error marking payout fulfilled:", err);
+    res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+
 app.post('/report-podcast', async (req, res) => {
   const { podcastId, flagger } = req.body;
 
