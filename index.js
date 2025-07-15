@@ -51,9 +51,11 @@ app.post('/wallet-address', async (req, res) => {
     );
     res.json({ success: true });
   } catch (err) {
+    console.error("❌ Error updating wallet:", err.message);
     res.status(500).json({ error: 'Database error' });
   }
 });
+
 
 
 app.use(express.json());
