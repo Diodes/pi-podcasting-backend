@@ -136,19 +136,20 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
 });
 
 app.post('/request-payout', async (req, res) => {
-  const { creatorUsername, uid } = req.body;
+  const { creatorUsername, uid, txid } = req.body;
 
-  if (!creatorUsername || !uid) {
-    console.warn("⚠️ [request-payout] Missing creatorUsername or uid:", req.body);
+  if (!creatorUsername || !uid || !txid) {
+    console.warn("⚠️ [request-payout] Missing required fields:", req.body);
     return res.status(400).json({
       success: false,
-      error: "creatorUsername and uid are required for payout",
+      error: "creatorUsername, uid, and txid are required for payout",
     });
   }
 
   try {
     console.log(`📥 [request-payout] Logging payout for: ${creatorUsername}`);
 
+    // Get total unpaid tips
     const tipsRes = await db.query(`
       SELECT SUM(amount) AS total
       FROM tips
@@ -164,14 +165,31 @@ app.post('/request-payout', async (req, res) => {
       });
     }
 
+    // Calculate payout + fee
     const platformFee = parseFloat((totalTips * 0.10).toFixed(6));
     const payoutAmount = parseFloat((totalTips - platformFee).toFixed(6));
 
-    await db.query(`
-      INSERT INTO payouts (creator_username, amount_paid, platform_fee)
-      VALUES ($1, $2, $3)
-    `, [creatorUsername, payoutAmount, platformFee]);
+    // 🔍 Fetch wallet address
+    const walletRes = await db.query(`
+      SELECT wallet_address FROM users WHERE creator_pi_username = $1
+    `, [creatorUsername]);
 
+    const paidTo = walletRes.rows[0]?.wallet_address || null;
+
+    if (!paidTo) {
+      return res.status(400).json({
+        success: false,
+        error: "No wallet address on file for creator",
+      });
+    }
+
+    // ✅ Insert payout record
+    await db.query(`
+      INSERT INTO payouts (creator_username, amount_paid, platform_fee, txid, paid_to, status)
+      VALUES ($1, $2, $3, $4, $5, 'completed')
+    `, [creatorUsername, payoutAmount, platformFee, txid, paidTo]);
+
+    // ✅ Mark all unpaid tips as paid
     const updateRes = await db.query(`
       UPDATE tips
       SET paid = true
@@ -185,6 +203,7 @@ app.post('/request-payout', async (req, res) => {
       payoutAmount,
       platformFee,
       totalTips,
+      paidTo,
       message: `✅ Logged payout of ${payoutAmount} Pi to ${creatorUsername}.`,
     });
 
@@ -193,7 +212,6 @@ app.post('/request-payout', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
-
 
 app.post('/report-podcast', async (req, res) => {
   const { podcastId, flagger } = req.body;
