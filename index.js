@@ -25,48 +25,36 @@ app.use(cors({
   ],
 }));
 
-/*// At top of your app (temporary test route)
-app.get("/test-uid/:uid", async (req, res) => {
-  const { uid } = req.params;
-
+app.get('/wallet-address/:username', async (req, res) => {
+  const { username } = req.params;
   try {
-    const piRes = await fetch(`https://api.minepi.com/v2/users/${uid}`, {
-      headers: {
-        Authorization: `Key ${process.env.PI_API_KEY}`
-      }
-    });
-
-    const data = await piRes.json();
-    return res.json({ status: piRes.status, data });
+    const result = await db.query(
+      `SELECT wallet_address FROM users WHERE creator_pi_username = $1`,
+      [username]
+    );
+    res.json({ walletAddress: result.rows[0]?.wallet_address || '' });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
-*/
 
-/*app.get("/test-api-key", async (req, res) => {
-  if (!PI_API_KEY) {
-    return res.status(500).json({ success: false, error: "No PI_API_KEY set in env" });
+app.post('/wallet-address', async (req, res) => {
+  const { username, walletAddress } = req.body;
+  if (!username || !walletAddress) {
+    return res.status(400).json({ error: 'Missing fields' });
   }
 
   try {
-    const piRes = await fetch("https://api.minepi.com/v2/payments", {
-      headers: { Authorization: `Key ${PI_API_KEY}` }
-    });
-
-    const text = await piRes.text();
-
-    return res.status(piRes.status).json({
-      success: true,
-      note: "This is a raw response from /v2/payments to confirm API key works",
-      response: text
-    });
+    await db.query(
+      `UPDATE users SET wallet_address = $1 WHERE creator_pi_username = $2`,
+      [walletAddress, username]
+    );
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Test API key failed:", err);
-    return res.status(500).json({ success: false, error: err.message });
+    res.status(500).json({ error: 'Database error' });
   }
 });
-*/
+
 
 app.use(express.json());
 
