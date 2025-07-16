@@ -215,6 +215,41 @@ app.post('/request-payout', async (req, res) => {
 });
 */
 
+app.post('/request-manual-payout', async (req, res) => {
+  const { username } = req.body;
+
+  if (!username) {
+    return res.status(400).json({ success: false, error: "Missing username" });
+  }
+
+  try {
+    const result = await db.query(`
+      INSERT INTO payout_requests (username)
+      VALUES ($1)
+      ON CONFLICT (username) DO NOTHING
+    `, [username]);
+
+    res.json({ success: true, message: "Payout request logged." });
+  } catch (err) {
+    console.error("❌ Error logging payout request:", err);
+    res.status(500).json({ success: false, error: "DB error" });
+  }
+});
+
+app.get('/admin/payout-requests', async (req, res) => {
+  try {
+    const result = await db.query(`
+      SELECT * FROM payout_requests
+      WHERE fulfilled = false
+      ORDER BY requested_at ASC
+    `);
+    res.json({ success: true, requests: result.rows });
+  } catch (err) {
+    console.error("❌ Error fetching payout requests:", err);
+    res.status(500).json({ success: false, error: "DB error" });
+  }
+});
+
 
 app.post('/admin/manual-payout', async (req, res) => {
   const { creatorUsername, amount, reason } = req.body;
@@ -257,6 +292,28 @@ app.get('/admin/payouts', async (req, res) => {
   } catch (err) {
     console.error("❌ Error fetching payouts:", err);
     res.status(500).json({ success: false, error: 'DB error' });
+  }
+});
+
+app.patch('/admin/payout-requests/:username/fulfill', async (req, res) => {
+  const { username } = req.params;
+
+  try {
+    const result = await db.query(`
+      UPDATE payout_requests
+      SET fulfilled = true
+      WHERE username = $1
+      RETURNING *
+    `, [username]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ success: false, error: "Request not found" });
+    }
+
+    res.json({ success: true, fulfilled: result.rows[0] });
+  } catch (err) {
+    console.error("❌ Error fulfilling payout request:", err);
+    res.status(500).json({ success: false, error: "DB error" });
   }
 });
 
