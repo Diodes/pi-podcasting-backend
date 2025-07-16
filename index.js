@@ -213,6 +213,35 @@ app.post('/request-payout', async (req, res) => {
   }
 });
 
+app.post('/admin/manual-payout', async (req, res) => {
+  const { creatorUsername, amount, reason } = req.body;
+
+  if (!creatorUsername || !amount || isNaN(amount)) {
+    return res.status(400).json({ success: false, error: "Missing or invalid parameters" });
+  }
+
+  try {
+    const platformFee = parseFloat((amount * 0.10).toFixed(6));
+    const payoutAmount = parseFloat((amount - platformFee).toFixed(6));
+
+    await db.query(`
+      INSERT INTO payouts (creator_username, amount_paid, platform_fee, is_manual, reason)
+      VALUES ($1, $2, $3, true, $4)
+    `, [creatorUsername, payoutAmount, platformFee, reason || null]);
+
+    res.json({ 
+      success: true, 
+      message: `✅ Manual payout of ${payoutAmount} Pi to ${creatorUsername} logged.`,
+      payoutAmount,
+      platformFee
+    });
+  } catch (err) {
+    console.error("🔥 [manual-payout] Error:", err);
+    res.status(500).json({ success: false, error: "Database error" });
+  }
+});
+
+
 app.get('/admin/payouts', async (req, res) => {
   try {
     const result = await db.query(`
