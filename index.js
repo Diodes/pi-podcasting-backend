@@ -245,7 +245,7 @@ app.post('/admin/manual-payout', async (req, res) => {
 app.get('/admin/payouts', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT id, creator_username, amount_paid, paid_to, txid, payout_date, status
+      SELECT id, creator_username, amount_paid, paid_to, txid, payout_date, status, is_manual, reason
       FROM payouts
       ORDER BY payout_date DESC
       LIMIT 100
@@ -256,6 +256,7 @@ app.get('/admin/payouts', async (req, res) => {
     res.status(500).json({ success: false, error: 'DB error' });
   }
 });
+
 
 app.patch('/admin/payouts/:id/fulfill', async (req, res) => {
   const { id } = req.params;
