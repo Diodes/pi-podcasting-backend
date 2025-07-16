@@ -135,6 +135,7 @@ app.get('/tips-since-last-payout/:username', async (req, res) => {
   }
 });
 
+/*
 app.post('/request-payout', async (req, res) => {
   const { creatorUsername, uid, txid } = req.body;
 
@@ -212,6 +213,8 @@ app.post('/request-payout', async (req, res) => {
     res.status(500).json({ success: false, error: err.message });
   }
 });
+*/
+
 
 app.post('/admin/manual-payout', async (req, res) => {
   const { creatorUsername, amount, reason } = req.body;
