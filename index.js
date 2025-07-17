@@ -259,20 +259,39 @@ app.post('/admin/manual-payout', async (req, res) => {
   }
 
   try {
+    // 🔍 Step 1: Fetch wallet address from `users` table
+    const walletRes = await db.query(
+      `SELECT wallet_address FROM users WHERE creator_pi_username = $1`,
+      [creatorUsername]
+    );
+
+    const walletAddress = walletRes.rows[0]?.wallet_address;
+
+    if (!walletAddress || walletAddress.length < 30) {
+      return res.status(400).json({
+        success: false,
+        error: "User has not set a valid wallet address.",
+      });
+    }
+
+    // 🧮 Step 2: Calculate payout
     const platformFee = parseFloat((amount * 0.10).toFixed(6));
     const payoutAmount = parseFloat((amount - platformFee).toFixed(6));
 
+    // 💾 Step 3: Log to payouts table
     await db.query(`
-      INSERT INTO payouts (creator_username, amount_paid, platform_fee, is_manual, reason)
-      VALUES ($1, $2, $3, true, $4)
-    `, [creatorUsername, payoutAmount, platformFee, reason || null]);
+      INSERT INTO payouts (creator_username, amount_paid, platform_fee, is_manual, reason, paid_to)
+      VALUES ($1, $2, $3, true, $4, $5)
+    `, [creatorUsername, payoutAmount, platformFee, reason || null, walletAddress]);
 
-    res.json({ 
-      success: true, 
+    res.json({
+      success: true,
       message: `✅ Manual payout of ${payoutAmount} Pi to ${creatorUsername} logged.`,
       payoutAmount,
-      platformFee
+      platformFee,
+      paidTo: walletAddress
     });
+
   } catch (err) {
     console.error("🔥 [manual-payout] Error:", err);
     res.status(500).json({ success: false, error: "Database error" });
