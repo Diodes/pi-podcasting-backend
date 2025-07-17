@@ -277,6 +277,7 @@ app.post('/admin/manual-payout', async (req, res) => {
     // 🧮 Step 2: Calculate payout
     const platformFee = parseFloat((amount * 0.10).toFixed(6));
     const payoutAmount = parseFloat((amount - platformFee).toFixed(6));
+    const adminUsername = "joeredrog"; // or dynamically from session later
 
     // 💾 Step 3: Log to payouts table
     await db.query(`
