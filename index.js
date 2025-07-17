@@ -277,13 +277,31 @@ app.post('/admin/manual-payout', async (req, res) => {
     // 🧮 Step 2: Calculate payout
     const platformFee = parseFloat((amount * 0.10).toFixed(6));
     const payoutAmount = parseFloat((amount - platformFee).toFixed(6));
-    const adminUsername = "joeredrog"; // or dynamically from session later
-
+    
     // 💾 Step 3: Log to payouts table
-    await db.query(`
-      INSERT INTO payouts (creator_username, amount_paid, platform_fee, is_manual, reason, paid_to)
-      VALUES ($1, $2, $3, true, $4, $5)
-    `, [creatorUsername, payoutAmount, platformFee, reason || null, walletAddress]);
+    const adminUsername = "joeredrog"; // hardcoded for now
+
+      await db.query(`
+        INSERT INTO payouts (
+          creator_username,
+          amount_paid,
+          platform_fee,
+          is_manual,
+          reason,
+          paid_to,
+          username,
+          status
+        )
+        VALUES ($1, $2, $3, true, $4, $5, $6, 'completed')
+      `, [
+        creatorUsername,
+        payoutAmount,
+        platformFee,
+        reason || null,
+        walletAddress,
+        adminUsername // << this is the key value that was missing
+      ]);
+
 
     res.json({
       success: true,
