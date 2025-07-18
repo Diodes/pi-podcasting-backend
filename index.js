@@ -434,14 +434,25 @@ app.patch('/admin/payout-requests/:username/fulfill', async (req, res) => {
 
 app.patch('/admin/payouts/:id/fulfill', async (req, res) => {
   const { id } = req.params;
+
   try {
+    // Fulfill the payout
     const result = await db.query(
       `UPDATE payouts SET status = 'fulfilled' WHERE id = $1 RETURNING *`,
       [id]
     );
-    res.json({ success: true, payout: result.rows[0] });
+
+    const payout = result.rows[0];
+    if (!payout) {
+      return res.status(404).json({ success: false, error: "Payout not found" });
+    }
+
+    // Auto-clear payout request if it exists
+    await db.query(`DELETE FROM payout_requests WHERE username = $1`, [payout.creator_username]);
+
+    res.json({ success: true, payout });
   } catch (err) {
-    console.error("❌ Error marking payout fulfilled:", err);
+    console.error("❌ Error fulfilling payout:", err);
     res.status(500).json({ success: false, error: 'DB error' });
   }
 });
