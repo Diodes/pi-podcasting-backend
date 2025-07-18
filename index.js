@@ -215,6 +215,8 @@ app.post('/request-payout', async (req, res) => {
 });
 */
 
+const { sendPayoutRequestEmail } = require('./mailer');
+
 app.post('/request-manual-payout', async (req, res) => {
   const { username } = req.body;
 
@@ -223,18 +225,57 @@ app.post('/request-manual-payout', async (req, res) => {
   }
 
   try {
-    const result = await db.query(`
-      INSERT INTO payout_requests (username)
-      VALUES ($1)
-      ON CONFLICT (username) DO NOTHING
+    // check if already requested
+    const existing = await db.query(
+      `SELECT * FROM payout_requests WHERE username = $1`,
+      [username]
+    );
+
+    if (existing.rows.length > 0) {
+      return res.json({ success: false, error: "Already requested" });
+    }
+
+    // fetch wallet address
+    const walletRes = await db.query(
+      `SELECT wallet_address FROM users WHERE creator_pi_username = $1`,
+      [username]
+    );
+
+    const wallet = walletRes.rows[0]?.wallet_address;
+    if (!wallet || wallet.length < 20) {
+      return res.json({ success: false, error: "No valid wallet on file" });
+    }
+
+    // fetch tip amount since last payout
+    const tipStats = await db.query(`
+      SELECT COALESCE(SUM(amount), 0) AS total
+      FROM tips
+      WHERE recipient_username = $1
+        AND paid = false
     `, [username]);
 
-    res.json({ success: true, message: "Payout request logged." });
+    const amount = parseFloat(tipStats.rows[0]?.total || 0).toFixed(4);
+
+    if (amount < 3) {
+      return res.json({ success: false, error: "Below minimum payout" });
+    }
+
+    // insert request
+    await db.query(
+      `INSERT INTO payout_requests (username, requested_at) VALUES ($1, NOW())`,
+      [username]
+    );
+
+    // send email to admin
+    await sendPayoutRequestEmail(username, wallet, amount);
+
+    res.json({ success: true });
   } catch (err) {
-    console.error("❌ Error logging payout request:", err);
-    res.status(500).json({ success: false, error: "DB error" });
+    console.error("🔥 Error in request-manual-payout:", err);
+    res.status(500).json({ success: false, error: "Server error" });
   }
 });
+
 
 app.get('/admin/payout-requests', async (req, res) => {
   try {
