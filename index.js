@@ -239,9 +239,18 @@ app.post('/request-manual-payout', async (req, res) => {
 app.get('/admin/payout-requests', async (req, res) => {
   try {
     const result = await db.query(`
-      SELECT * FROM payout_requests
+      SELECT 
+        pr.id,
+        pr.username,
+        pr.requested_at,
+        (
+          SELECT COALESCE(SUM(amount), 0)
+          FROM tips
+          WHERE recipient_username = pr.username AND paid = false
+        ) AS total_requested
+      FROM payout_requests pr
       WHERE fulfilled = false
-      ORDER BY requested_at ASC
+      ORDER BY pr.requested_at ASC
     `);
     res.json({ success: true, requests: result.rows });
   } catch (err) {
@@ -249,6 +258,7 @@ app.get('/admin/payout-requests', async (req, res) => {
     res.status(500).json({ success: false, error: "DB error" });
   }
 });
+
 
 
 app.post('/admin/manual-payout', async (req, res) => {
