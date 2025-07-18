@@ -336,6 +336,28 @@ app.get('/admin/payouts', async (req, res) => {
   }
 });
 
+app.patch('/admin/payouts/:id/txid', async (req, res) => {
+  const { id } = req.params;
+  const { txid } = req.body;
+
+  if (!txid || txid.length < 10) {
+    return res.status(400).json({ success: false, error: "Invalid txid" });
+  }
+
+  try {
+    await db.query(
+      `UPDATE payouts SET txid = $1, status = 'fulfilled' WHERE id = $2`,
+      [txid, id]
+    );
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error("❌ Error saving txid:", err);
+    res.status(500).json({ success: false, error: "Database error" });
+  }
+});
+
+
 app.patch('/admin/payout-requests/:username/fulfill', async (req, res) => {
   const { username } = req.params;
 
