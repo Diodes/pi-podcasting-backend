@@ -280,10 +280,12 @@ app.post('/admin/manual-payout', async (req, res) => {
     
     // 💾 Step 3: Log to payouts table
     const adminUsername = "joeredrog"; // hardcoded for now
+    const grossAmount = parseFloat(amount); // the original amount before fee
 
       await db.query(`
         INSERT INTO payouts (
           creator_username,
+          amount,
           amount_paid,
           platform_fee,
           is_manual,
@@ -292,14 +294,15 @@ app.post('/admin/manual-payout', async (req, res) => {
           username,
           status
         )
-        VALUES ($1, $2, $3, true, $4, $5, $6, 'completed')
+        VALUES ($1, $2, $3, $4, true, $5, $6, $7, 'completed')
       `, [
         creatorUsername,
-        payoutAmount,
+        grossAmount,        // amount (original)
+        payoutAmount,       // amount_paid (after 10% fee)
         platformFee,
         reason || null,
         walletAddress,
-        adminUsername // << this is the key value that was missing
+        adminUsername
       ]);
 
 
